@@ -7,35 +7,33 @@ package object structural_typing {
 
   type closable = { def close(): Unit }
 
-  trait Outcome[+T] {
-    type E
-    def withFallback(f: (T, E) => Unit)
+  trait Outcome {
+    type E <: Exception
+    def withFallback(f: E => Unit)
   }
 
-  trait Failure[T] extends Outcome[T] {
+  trait Failure extends Outcome {
 
-    def source: T
     def exception: E
 
-    def withFallback(f: (T, E) => Unit) = {
-      f(source, exception)
+    def withFallback(f: E => Unit) = {
+      f(exception)
     }
   }
 
-  object Succeded extends Outcome[Nothing] {
-    def withFallback(f: (Nothing, E) => Unit) = Unit
+  object Succeded extends Outcome {
+    def withFallback(f: E => Unit) = Unit
   }
 
-  def tryUsing[T <: closable](resource: T)(loanTo: T => Unit): Outcome[T] = {
+  def tryUsing[T <: closable](resource: T)(loanTo: T => Unit): Outcome = {
     println("loaning resource...");
 
     try {
       loanTo(resource)
       return Succeded
     } catch {
-      case e: Exception => return new Failure[T] {
+      case e: Exception => return new Failure {
         type E = e.type
-        def source = resource
         def exception = e
       }
     } finally {

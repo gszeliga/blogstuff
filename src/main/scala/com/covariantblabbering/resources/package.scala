@@ -10,23 +10,20 @@ package object resources {
     def close(r: R)
   }
 
-  trait Outcome[+T] {
-    type E
-    def withFallback(f: (T, E) => Unit)
+  trait Outcome {
+    type E <: Exception
+    def withFallback(f: E => Unit)
   }
 
-  trait Failure[T] extends Outcome[T] {
-
-    def source: T
+  trait Failure extends Outcome {
     def exception: E
-
-    def withFallback(f: (T, E) => Unit) = {
-      f(source, exception)
+    def withFallback(f: E => Unit) = {
+      f(exception)
     }
   }
 
-  object Succeded extends Outcome[Nothing] {
-    def withFallback(f: (Nothing, E) => Unit) = Unit
+  object Succeded extends Outcome {
+    def withFallback(f: E => Unit) = Unit
   }  
   
   implicit def closableResourceManager[A <: closable] = new Resource[A] {
@@ -41,7 +38,7 @@ package object resources {
 //    def close(r: java.io.FileInputStream) = {println("explicit file input stream...."); r.close}
 //  }  
   
-  def using[T](rs: T)(loanTo: T => Unit)(implicit r: Resource[T]): Outcome[T] = {
+  def using[T](rs: T)(loanTo: T => Unit)(implicit r: Resource[T]): Outcome = {
     try {
       
       r.open(rs)
@@ -50,9 +47,8 @@ package object resources {
       return Succeded
     }
     catch{
-      case e:Exception => new Failure[T]{
+      case e:Exception => new Failure{
         type E = e.type
-        def source = rs
         def exception = e
       }
     } finally {
