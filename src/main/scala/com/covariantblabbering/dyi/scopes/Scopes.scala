@@ -19,16 +19,16 @@ object ApplicationScope {
 
     new ApplicationScope {
 
-      def emailConfiguration = ServerConfiguration(config.getOptionalString("my-dyi-app.email.username"),
-        config.getOptionalString("my-dyi-app.email.username"),
-        config.getOptionalString("my-dyi-app.email.username"))
+      def emailConfiguration = ServerConfiguration(config.getOptionalString("my-diy-app.email.username"),
+        config.getOptionalString("my-diy-app.email.password"),
+        config.getOptionalString("my-diy-app.email.url"))
 
       def defaultNotificationTemplate = null
 
-      def databaseConfiguration = DatabaseConfiguration(config.getOptionalString("my-dyi-app.datasource.username"),
-        config.getOptionalString("my-dyi-app.datasource.password"),
-        config.getOptionalString("my-dyi-app.datasource.url"),
-        config.getOptionalString("my-dyi-app.datasource.type"))
+      def databaseConfiguration = DatabaseConfiguration(config.getOptionalString("my-diy-app.datasource.username"),
+        config.getOptionalString("my-diy-app.datasource.password"),
+        config.getOptionalString("my-diy-app.datasource.url"),
+        config.getOptionalString("my-diy-app.datasource.type"))
     }
   }
 }

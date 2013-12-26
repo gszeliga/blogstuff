@@ -23,10 +23,10 @@ package types {
 
     def apply(usr: Option[String], pwd: Option[String], url: Option[String], prov: Option[String]): DatabaseConfiguration = {
 
-      assert(usr.isDefined)
-      assert(pwd.isDefined)
-      assert(url.isDefined)
-      assert(prov.isDefined)
+      assert(usr.isDefined, "Database username is missing")
+      assert(pwd.isDefined, "Database password is missing")
+      assert(url.isDefined, "Database url is missing")
+      assert(prov.isDefined, "Database provider is missing")
       
       new DatabaseConfiguration {
         def username = usr.get
