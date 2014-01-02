@@ -1,17 +1,19 @@
-package com.covariantblabbering.dyi.config
+package com.covariantblabbering.diy.config
 
 import java.net.URL
 import java.io.File
 
-package types {
+package object types {
 
-  trait ServerConfiguration {
+  trait Configuration
+  
+  trait ServerConfiguration extends Configuration{
     def username: String
     def password: String
     def locationUrl: String
   }
 
-  trait DatabaseConfiguration {
+  trait DatabaseConfiguration extends Configuration{
 
     def username: String
     def password: String

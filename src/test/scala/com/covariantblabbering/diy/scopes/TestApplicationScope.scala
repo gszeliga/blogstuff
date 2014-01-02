@@ -1,4 +1,4 @@
-package com.covariantblabbering.dyi.scopes
+package com.covariantblabbering.diy.scopes
 
 import org.scalatest._
 import org.junit.runner.RunWith

@@ -1,4 +1,4 @@
-package com.covariantblabbering.dyi
+package com.covariantblabbering.diy
 
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigException
