@@ -13,6 +13,15 @@ package object scopes {
         case e: ConfigException.Missing => None
       }
     }
+    
+    def getOptionalInt(key: String): Option[Int] = {
+      try {
+        Some(underlying.getInt(key))
+      } catch {
+        case e: ConfigException.Missing => None
+      }
+    }    
+    
   }
 
 }

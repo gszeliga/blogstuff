@@ -58,7 +58,9 @@ object ApplicationScope {
       def databaseConfiguration = DatabaseConfiguration(config.getOptionalString("my-diy-app.datasource.username"),
         config.getOptionalString("my-diy-app.datasource.password"),
         config.getOptionalString("my-diy-app.datasource.url"),
-        config.getOptionalString("my-diy-app.datasource.type"))
+        config.getOptionalString("my-diy-app.datasource.provider"),
+        config.getOptionalInt("my-diy-app.datasource.port"),
+        config.getOptionalString("my-diy-app.datasource.database-name"))
     }
   }
 }

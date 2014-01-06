@@ -22,10 +22,11 @@ class TestApplicationScope extends FlatSpec with Matchers{
     		
     assert(scope.databaseConfiguration != null)
     
-    scope.databaseConfiguration.username should be ("myuser")
-    scope.databaseConfiguration.password should be ("mypassword")
-    scope.databaseConfiguration.connectionUrl should be ("someconection@localhost:999")
+    scope.databaseConfiguration.username should be ("mypeople")
+    scope.databaseConfiguration.password should be ("mypeople")
+    scope.databaseConfiguration.connectionUrl should be ("jdbc:oracle:thin:@127.0.0.1:1521:XE")
     scope.databaseConfiguration.provider should be ("oracle")
+    scope.databaseConfiguration.port should be (1521)
   }  
   
   it must " load email server information" in {

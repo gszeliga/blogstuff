@@ -8,6 +8,7 @@ import scala.util.Failure
 import scala.{ None, Some }
 import java.sql.Connection
 import java.sql.Statement
+import scala.collection.mutable.ListBuffer
 
 package object repository {
 
@@ -38,11 +39,11 @@ package object repository {
       }
     }
 
-    def get[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[Option[T]] = {
+    private[this] def makeItSafe[T](dataSource: Option[DataSource], sql: String)(traverse: ResultSet => Try[T]): Try[T] = {
 
       dataSource match {
         case Some(ds) => {
-          
+
           lift(ds.getConnection)() match {
 
             case Failure(e) => Failure(e)
@@ -61,17 +62,9 @@ package object repository {
 
                         case Failure(e) => Failure(e)
                         case Success(None) => Failure(new RuntimeException("Excepted resultset is missing"))
-                        case Success(Some(rs)) => {
-
-                          try {
-                            if (rs.next()) {
-                              lift1(rowToEntity)(rs)
-                            } else Success(None)
-                          } finally {
-                            mute(rs.close)
-                          }
+                        case Success(Some(rs)) => try { traverse(rs) } finally {
+                          mute(rs.close)
                         }
-
                       }
                     } finally {
                       mute(stm.close)
@@ -89,6 +82,38 @@ package object repository {
 
       }
 
+    }
+
+    def get[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[Option[T]] = {
+
+      makeItSafe[Option[T]](dataSource, sql) { rs =>
+        if (rs.next()) {
+          lift1(rowToEntity)(rs)
+        } else Success(None)
+      }
+    }
+
+    def all[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[List[T]] = {
+
+      makeItSafe[List[T]](dataSource, sql) { rs =>
+
+        try {
+
+          val ls = new ListBuffer[T]
+
+          while (rs.next()) {
+            lift1(rowToEntity)(rs) match {
+              case Success(o) => o map { ls += }
+              case Failure(e) => throw e
+            }
+          }
+          
+          Success(ls.toList)
+          
+        } catch {
+          case e: Throwable => Failure(e)
+        }
+      }
     }
   }
 }
