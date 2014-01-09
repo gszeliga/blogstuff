@@ -86,7 +86,7 @@ package object repository {
 
     def all2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[List[T]] = {
 
-      val result = execute(dataSource, sql) { rs =>
+      execute(dataSource, sql) { rs =>
 
         try {
 
@@ -105,9 +105,7 @@ package object repository {
         } catch {
           case e: Throwable => Failure(e)
         }
-      }
-
-      result match {
+      } match {
         case Continue(Some(a)) => Continue(a).asTry
         case h @ Halt(_) => h.asTry
       }

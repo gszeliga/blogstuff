@@ -42,7 +42,7 @@ object JDBC {
   }
 }
 
-case class Continue[T](obj: T) extends JDBC[T] {
+sealed case class Continue[T](obj: T) extends JDBC[T] {
 
   def get = obj
   
@@ -59,7 +59,7 @@ case class Continue[T](obj: T) extends JDBC[T] {
   
 }
 
-case class Halt[T](e: Throwable) extends JDBC[T] {
+sealed case class Halt[T](e: Throwable) extends JDBC[T] {
   def get = throw e
   def foreach[U](f: T => U) = ()
   def map[A](f: T => A): JDBC[A] = this.asInstanceOf[JDBC[A]]
