@@ -21,16 +21,8 @@ object JDBC {
     } catch {
       case e: Throwable => Failure(e)
     }
-  }  
+  }
 
-  def trying1[P, R](f: Function1[P, R]) = (p1: P) => {
-    try {
-      Success(f(p1))
-    } catch {
-      case e: Throwable => Failure(e)
-    }
-  }  
-  
   def apply[T](f: () => T): JDBC[T] =
     apply(trying(f)())
 
@@ -45,18 +37,19 @@ object JDBC {
 sealed case class Continue[T](obj: T) extends JDBC[T] {
 
   def get = obj
-  
+
   def foreach[U](f: T => U) = f(obj)
-  def map[A](f: T => A): JDBC[A] = JDBC(JDBC.trying1(f)(obj))
-  def flatMap[A](f: T => JDBC[A]): JDBC[A] = JDBC.trying1(f)(obj) match {
-    case Success(c) => c
-    case Failure(e) => new Halt(e)
+  def map[A](f: T => A): JDBC[A] = JDBC {
+    try {
+      Success(f(obj))
+    } catch {
+      case e: Throwable => Failure(e)
+    }
   }
-
+  def flatMap[A](f: T => JDBC[A]): JDBC[A] = f(obj)
   def andIfHalted(f: Function1[Throwable, Unit]): JDBC[T] = this
-
   def asTry = new Success(get)
-  
+
 }
 
 sealed case class Halt[T](e: Throwable) extends JDBC[T] {
