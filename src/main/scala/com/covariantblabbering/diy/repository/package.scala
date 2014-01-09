@@ -9,12 +9,13 @@ import scala.{ None, Some }
 import java.sql.Connection
 import java.sql.Statement
 import scala.collection.mutable.ListBuffer
+import java.sql.PreparedStatement
 
 package object repository {
 
   private[repository] object RepositoryTemplate {
 
-    private[this] def mute[R](f: Function0[R]) = {
+    private[this] def mute[R](f: Function0[R]): Unit = {
       try {
         f()
       } catch {
@@ -37,6 +38,84 @@ package object repository {
       } catch {
         case e: Throwable => Failure(e)
       }
+    }
+
+    def execute[T](dataSource: Option[DataSource]) = { (sql: String) =>
+      
+      (traverse: ResultSet => Try[Option[T]]) =>
+        {
+
+          def closeSafely(objs: { def close(): Unit }*): Throwable => Unit = { (e: Throwable) =>
+
+            for (obj <- objs) {
+              mute(obj.close);
+            }
+          }
+
+          dataSource match {
+
+            case Some(ds) => {
+
+              for (
+
+                cn <- JDBC(() => ds.getConnection());
+                stm <- JDBC(() => cn.prepareStatement(sql)) andIfHalted closeSafely(cn);
+                rs <- JDBC(() => stm.executeQuery()) andIfHalted closeSafely(stm, cn);
+                result <- JDBC(traverse(rs)) andIfHalted closeSafely(rs, stm, cn)
+
+              ) yield {
+
+                mute(cn.close)
+                mute(stm.close)
+                mute(rs.close)
+
+                result
+              }
+            }
+
+            case None => new Halt(new RuntimeException("No datasource is available"))
+
+          }
+        }
+    }
+
+    def get2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): JDBC[Option[T]] = {
+
+      execute(dataSource)(sql) { rs =>
+        if (rs.next()) {
+          lift1(rowToEntity)(rs)
+        } else Success(None)
+      }
+
+    }
+
+    def all2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): JDBC[List[T]] = {
+
+      val result = execute(dataSource)(sql) { rs =>
+
+        try {
+
+          val ls = new ListBuffer[T]
+
+          while (rs.next()) {
+            lift1(rowToEntity)(rs) match {
+              case Success(o) => o map { ls += }
+              case Failure(e) => throw e
+            }
+          }
+
+          Success(Some(ls.toList))
+
+        } catch {
+          case e: Throwable => Failure(e)
+        }
+      }
+
+      result match {
+        case Continue(Some(a)) => Continue(a)
+        case Halt(e) => Halt(e)
+      }
+
     }
 
     private[this] def makeItSafe[T](dataSource: Option[DataSource], sql: String)(traverse: ResultSet => Try[T]): Try[T] = {
@@ -107,9 +186,9 @@ package object repository {
               case Failure(e) => throw e
             }
           }
-          
+
           Success(ls.toList)
-          
+
         } catch {
           case e: Throwable => Failure(e)
         }

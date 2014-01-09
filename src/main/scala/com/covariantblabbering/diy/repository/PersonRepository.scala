@@ -10,10 +10,36 @@ import java.sql.ResultSet
 
 trait PersonRepository {
   def get(id: String): Try[Option[Person]]
+  def get2(id: String): Try[Option[Person]]
+  def getWithErrorsOnMapping(id: String): Try[Option[Person]]
   def all: Try[List[Person]]
+  def all2: Try[List[Person]]
 }
 
 private[repository] class PersonRepositoryImpl(private val dataSource: Option[DataSource]) extends PersonRepository {
+
+  def get2(id: String): Try[Option[Person]] = {
+
+    RepositoryTemplate.get2(dataSource, s"select * from people where id=$id") {
+      (rs =>
+        new Person(rs.getString("name"), rs.getString("lastname")))
+    } asTry
+  }
+
+  def all2: Try[List[Person]] = {
+    RepositoryTemplate.all2(dataSource, "select * from people") {
+      (rs =>
+        new Person(rs.getString("name"), rs.getString("lastname")))
+    } asTry
+  }
+
+  def getWithErrorsOnMapping(id: String): Try[Option[Person]] = {
+
+    RepositoryTemplate.get2(dataSource, s"select * from people where id=$id") {
+      (rs =>
+        new Person(rs.getString("nam"), rs.getString("lastnam")))
+    }
+  } asTry
 
   def get(id: String): Try[Option[Person]] = {
 
