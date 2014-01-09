@@ -40,48 +40,43 @@ package object repository {
       }
     }
 
-    def execute[T](dataSource: Option[DataSource]) = { (sql: String) =>
-      
-      (traverse: ResultSet => Try[Option[T]]) =>
-        {
+    def execute[T](dataSource: Option[DataSource], sql: String)(traverse: ResultSet => Try[Option[T]]): JDBC[Option[T]] = {
 
-          def closeSafely(objs: { def close(): Unit }*): Throwable => Unit = { (e: Throwable) =>
+      def closeSafely[P](objs: { def close(): Unit }*): P => Unit = { (p: P) =>
 
-            for (obj <- objs) {
-              mute(obj.close);
-            }
-          }
+        for (obj <- objs) {
+          mute(obj.close);
+        }
+        
+      }
 
-          dataSource match {
+      dataSource match {
 
-            case Some(ds) => {
+        case Some(ds) => {
 
-              for (
+          for (
+              
+            cn <- JDBC(() => ds.getConnection());
+            stm <- JDBC(() => cn.prepareStatement(sql)) andIfHalted closeSafely(cn);
+            rs <- JDBC(() => stm.executeQuery()) andIfHalted closeSafely(stm, cn);
+            result <- JDBC(traverse(rs)) andIfHalted closeSafely(rs, stm, cn)
 
-                cn <- JDBC(() => ds.getConnection());
-                stm <- JDBC(() => cn.prepareStatement(sql)) andIfHalted closeSafely(cn);
-                rs <- JDBC(() => stm.executeQuery()) andIfHalted closeSafely(stm, cn);
-                result <- JDBC(traverse(rs)) andIfHalted closeSafely(rs, stm, cn)
+          ) yield {
 
-              ) yield {
-
-                mute(cn.close)
-                mute(stm.close)
-                mute(rs.close)
-
-                result
-              }
-            }
-
-            case None => new Halt(new RuntimeException("No datasource is available"))
-
+            closeSafely(cn, stm, rs)
+            
+            result
           }
         }
+
+        case None => new Halt(new RuntimeException("No datasource were found available"))
+
+      }
     }
 
     def get2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): JDBC[Option[T]] = {
 
-      execute(dataSource)(sql) { rs =>
+      execute(dataSource, sql) { rs =>
         if (rs.next()) {
           lift1(rowToEntity)(rs)
         } else Success(None)
@@ -91,7 +86,7 @@ package object repository {
 
     def all2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): JDBC[List[T]] = {
 
-      val result = execute(dataSource)(sql) { rs =>
+      val result = execute(dataSource, sql) { rs =>
 
         try {
 
@@ -118,7 +113,7 @@ package object repository {
 
     }
 
-    private[this] def makeItSafe[T](dataSource: Option[DataSource], sql: String)(traverse: ResultSet => Try[T]): Try[T] = {
+    private[this] def executeVerbose[T](dataSource: Option[DataSource], sql: String)(traverse: ResultSet => Try[T]): Try[T] = {
 
       dataSource match {
         case Some(ds) => {
@@ -165,7 +160,7 @@ package object repository {
 
     def get[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[Option[T]] = {
 
-      makeItSafe[Option[T]](dataSource, sql) { rs =>
+      executeVerbose[Option[T]](dataSource, sql) { rs =>
         if (rs.next()) {
           lift1(rowToEntity)(rs)
         } else Success(None)
@@ -174,7 +169,7 @@ package object repository {
 
     def all[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[List[T]] = {
 
-      makeItSafe[List[T]](dataSource, sql) { rs =>
+      executeVerbose[List[T]](dataSource, sql) { rs =>
 
         try {
 
