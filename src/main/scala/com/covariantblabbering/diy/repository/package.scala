@@ -47,7 +47,7 @@ package object repository {
         for (obj <- objs) {
           mute(obj.close);
         }
-        
+
       }
 
       dataSource match {
@@ -55,7 +55,7 @@ package object repository {
         case Some(ds) => {
 
           for (
-              
+
             cn <- JDBC(() => ds.getConnection());
             stm <- JDBC(() => cn.prepareStatement(sql)) andIfHalted closeSafely(cn);
             rs <- JDBC(() => stm.executeQuery()) andIfHalted closeSafely(stm, cn);
@@ -64,7 +64,7 @@ package object repository {
           ) yield {
 
             closeSafely(cn, stm, rs)
-            
+
             result
           }
         }
@@ -74,26 +74,27 @@ package object repository {
       }
     }
 
-    def get2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): JDBC[Option[T]] = {
+    def get2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[Option[T]] = {
 
       execute(dataSource, sql) { rs =>
         if (rs.next()) {
           lift1(rowToEntity)(rs)
         } else Success(None)
-      }
+      } asTry
 
     }
 
-    def all2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): JDBC[List[T]] = {
+    def all2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[List[T]] = {
 
       val result = execute(dataSource, sql) { rs =>
 
         try {
 
           val ls = new ListBuffer[T]
+          val lifted = lift1(rowToEntity)
 
           while (rs.next()) {
-            lift1(rowToEntity)(rs) match {
+            lifted(rs) match {
               case Success(o) => o map { ls += }
               case Failure(e) => throw e
             }
@@ -107,8 +108,8 @@ package object repository {
       }
 
       result match {
-        case Continue(Some(a)) => Continue(a)
-        case Halt(e) => Halt(e)
+        case Continue(Some(a)) => Continue(a).asTry
+        case h @ Halt(_) => h.asTry
       }
 
     }
@@ -174,9 +175,10 @@ package object repository {
         try {
 
           val ls = new ListBuffer[T]
+          val lifted = lift1(rowToEntity)
 
           while (rs.next()) {
-            lift1(rowToEntity)(rs) match {
+            lifted(rs) match {
               case Success(o) => o map { ls += }
               case Failure(e) => throw e
             }

@@ -21,38 +21,38 @@ private[repository] class PersonRepositoryImpl(private val dataSource: Option[Da
   def get2(id: String): Try[Option[Person]] = {
 
     RepositoryTemplate.get2(dataSource, s"select * from people where id=$id") {
-      (rs =>
-        new Person(rs.getString("name"), rs.getString("lastname")))
-    } asTry
+      rs =>
+        new Person(rs.getString("name"), rs.getString("lastname"))
+    } 
   }
 
   def all2: Try[List[Person]] = {
     RepositoryTemplate.all2(dataSource, "select * from people") {
-      (rs =>
-        new Person(rs.getString("name"), rs.getString("lastname")))
-    } asTry
+      rs =>
+        new Person(rs.getString("name"), rs.getString("lastname"))
+    } 
   }
 
   def getWithErrorsOnMapping(id: String): Try[Option[Person]] = {
 
     RepositoryTemplate.get2(dataSource, s"select * from people where id=$id") {
-      (rs =>
-        new Person(rs.getString("nam"), rs.getString("lastnam")))
+      rs =>
+        new Person(rs.getString("nam"), rs.getString("lastnam"))
     }
-  } asTry
+  } 
 
   def get(id: String): Try[Option[Person]] = {
 
     RepositoryTemplate.get(dataSource, s"select * from people where id=$id") {
-      (rs =>
-        new Person(rs.getString("name"), rs.getString("lastname")))
+      rs =>
+        new Person(rs.getString("name"), rs.getString("lastname"))
     }
   }
 
   def all: Try[List[Person]] = {
     RepositoryTemplate.all(dataSource, "select * from people") {
-      (rs =>
-        new Person(rs.getString("name"), rs.getString("lastname")))
+      rs =>
+        new Person(rs.getString("name"), rs.getString("lastname"))
     }
   }
 
