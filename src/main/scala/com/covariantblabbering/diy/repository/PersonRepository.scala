@@ -20,14 +20,14 @@ private[repository] class PersonRepositoryImpl(private val dataSource: Option[Da
 
   def get2(id: String): Try[Option[Person]] = {
 
-    RepositoryTemplate.get2(dataSource, s"select * from people where id=$id") {
+    ImprovedRepositoryTemplate.get(dataSource, s"select * from people where id=$id") {
       rs =>
         new Person(rs.getString("name"), rs.getString("lastname"))
     } 
   }
 
   def all2: Try[List[Person]] = {
-    RepositoryTemplate.all2(dataSource, "select * from people") {
+    ImprovedRepositoryTemplate.all(dataSource, "select * from people") {
       rs =>
         new Person(rs.getString("name"), rs.getString("lastname"))
     } 
@@ -35,9 +35,9 @@ private[repository] class PersonRepositoryImpl(private val dataSource: Option[Da
 
   def getWithErrorsOnMapping(id: String): Try[Option[Person]] = {
 
-    RepositoryTemplate.get2(dataSource, s"select * from people where id=$id") {
+    ImprovedRepositoryTemplate.get(dataSource, s"select * from people where id=$id") {
       rs =>
-        new Person(rs.getString("nam"), rs.getString("lastnam"))
+        new Person(rs.getString("name"), rs.getString("lastnam"))
     }
   } 
 

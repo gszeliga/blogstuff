@@ -9,7 +9,7 @@ abstract class JDBC[+T] {
   def map[A](f: T => A): JDBC[A]
   def flatMap[A](f: T => JDBC[A]): JDBC[A]
   def foreach[A](f: T => A)
-  def andIfHalted(f: Function1[Throwable, Unit]): JDBC[T]
+  def otherwise(f: Function1[Throwable, Unit]): JDBC[T]
   def asTry: Try[T]
 }
 
@@ -47,7 +47,7 @@ sealed case class Continue[T](obj: T) extends JDBC[T] {
     }
   }
   def flatMap[A](f: T => JDBC[A]): JDBC[A] = f(obj)
-  def andIfHalted(f: Function1[Throwable, Unit]): JDBC[T] = this
+  def otherwise(f: Function1[Throwable, Unit]): JDBC[T] = this
   def asTry = new Success(get)
 
 }
@@ -57,7 +57,7 @@ sealed case class Halt[T](e: Throwable) extends JDBC[T] {
   def foreach[U](f: T => U) = ()
   def map[A](f: T => A): JDBC[A] = this.asInstanceOf[JDBC[A]]
   def flatMap[A](f: T => JDBC[A]): JDBC[A] = this.asInstanceOf[JDBC[A]]
-  def andIfHalted(f: Function1[Throwable, Unit]): JDBC[T] = {
+  def otherwise(f: Function1[Throwable, Unit]): JDBC[T] = {
     f(e)
     this
   }

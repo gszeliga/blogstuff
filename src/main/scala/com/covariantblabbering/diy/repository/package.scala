@@ -13,32 +13,32 @@ import java.sql.PreparedStatement
 
 package object repository {
 
-  private[repository] object RepositoryTemplate {
-
-    private[this] def mute[R](f: Function0[R]): Unit = {
-      try {
-        f()
-      } catch {
-        case ignored: Throwable =>
-      }
+  private[this] def mute[R](f: Function0[R]): Unit = {
+    try {
+      f()
+    } catch {
+      case ignored: Throwable =>
     }
+  }
 
-    private[this] def lift[R](f: Function0[R]) = () => {
+  private[this] def lift[R](f: Function0[R]) = () => {
 
-      try {
-        Success(Option(f()))
-      } catch {
-        case e: Throwable => Failure(e)
-      }
+    try {
+      Success(Option(f()))
+    } catch {
+      case e: Throwable => Failure(e)
     }
+  }
 
-    private[this] def lift1[P, R](f: Function1[P, R]) = (p1: P) => {
-      try {
-        Success(Option(f(p1)))
-      } catch {
-        case e: Throwable => Failure(e)
-      }
+  private[this] def lift1[P, R](f: Function1[P, R]) = (p1: P) => {
+    try {
+      Success(Option(f(p1)))
+    } catch {
+      case e: Throwable => Failure(e)
     }
+  }
+
+  private[repository] object ImprovedRepositoryTemplate {
 
     def execute[T](dataSource: Option[DataSource], sql: String)(traverse: ResultSet => Try[Option[T]]): JDBC[Option[T]] = {
 
@@ -57,9 +57,9 @@ package object repository {
           for (
 
             cn <- JDBC(() => ds.getConnection());
-            stm <- JDBC(() => cn.prepareStatement(sql)) andIfHalted closeSafely(cn);
-            rs <- JDBC(() => stm.executeQuery()) andIfHalted closeSafely(stm, cn);
-            result <- JDBC(traverse(rs)) andIfHalted closeSafely(rs, stm, cn)
+            stm <- JDBC(() => cn.prepareStatement(sql)) otherwise closeSafely(cn);
+            rs <- JDBC(() => stm.executeQuery()) otherwise closeSafely(stm, cn);
+            result <- JDBC(traverse(rs)) otherwise closeSafely(rs, stm, cn)
 
           ) yield {
 
@@ -74,7 +74,7 @@ package object repository {
       }
     }
 
-    def get2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[Option[T]] = {
+    def get[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[Option[T]] = {
 
       execute(dataSource, sql) { rs =>
         if (rs.next()) {
@@ -84,7 +84,7 @@ package object repository {
 
     }
 
-    def all2[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[List[T]] = {
+    def all[T](dataSource: Option[DataSource], sql: String)(rowToEntity: ResultSet => T): Try[List[T]] = {
 
       execute(dataSource, sql) { rs =>
 
@@ -106,11 +106,15 @@ package object repository {
           case e: Throwable => Failure(e)
         }
       } match {
-        case Continue(Some(a)) => Continue(a).asTry
-        case h @ Halt(_) => h.asTry
+        case Continue(Some(a)) => Continue(a) asTry
+        case h @ Halt(_) => h asTry
       }
 
     }
+
+  }
+
+  private[repository] object RepositoryTemplate {
 
     private[this] def executeVerbose[T](dataSource: Option[DataSource], sql: String)(traverse: ResultSet => Try[T]): Try[T] = {
 
