@@ -21,3 +21,8 @@ bin
 .project
 .settings
 .worksheet
+/blogstuff.iml
+
+#intellij
+.idea
+
