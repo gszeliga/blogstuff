@@ -1,6 +1,6 @@
-apply plugin: 'eclipse'
 apply plugin: 'scala'
 apply plugin: 'maven'
+apply plugin: 'idea'
 
 version = '1.0'
 
@@ -11,12 +11,6 @@ repositories{
 	maven{ 
 		url localMavenRepo
 	}
-}
-
-eclipse {
-    classpath {
-       downloadSources=true
-    }
 }
 
 dependencies{

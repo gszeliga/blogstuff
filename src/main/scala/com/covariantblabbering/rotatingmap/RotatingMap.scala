@@ -2,8 +2,6 @@ package com.covariantblabbering.rotatingmap
 
 import scala.annotation.tailrec
 import scala.collection.immutable.HashMap
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.async.Async.async
 
 class RotatingMap[K, V](val numBuckets: Int, val expiredCallback: Option[OnExpiration[K, V]]) {
 
@@ -34,10 +32,9 @@ class RotatingMap[K, V](val numBuckets: Int, val expiredCallback: Option[OnExpir
     _buckets = new HashMap[K, V] :: remaining
 
     //Notify expirations
-    async {
-      expiredCallback map {
-        dead.foreach(_)
-      }
+
+    expiredCallback map {
+      dead.foreach(_)
     }
 
     //return dead
