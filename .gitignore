@@ -26,3 +26,6 @@ bin
 #intellij
 .idea
 
+/.cache
+/projectFilesBackup/blogstuff.iml
+/src/main/main.iml
