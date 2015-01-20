@@ -44,7 +44,7 @@ class ApplicativeStyle {
             case e:Throwable => Failure(e)
           }
         }
-        case f @ _ => f
+        case f @ Failure(e) => f
       }
 
     }
