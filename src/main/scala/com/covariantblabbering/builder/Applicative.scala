@@ -3,7 +3,9 @@ package com.covariantblabbering.builder
 /**
  * Created by guillermo on 18/01/15.
  */
-class ApplicativeStyle {
+object ApplicativeStyle {
+
+  type Curryable = { def curried: _ => _ }
 
   trait Functor[F[_]]{
     def map[A,B](fa: F[A])(f: A => B): F[B]
@@ -16,15 +18,35 @@ class ApplicativeStyle {
     }
 
     def apply[A,B](a: F[A => B])(fa:F[A]):F[B] = {
-      map2(a,fa)(_(_))
+      map2(a,fa)((f,v) => f(v))
     }
 
-    def map[A,B](fa: F[A])(f: A => B):F[B] = {
-      map2(unit(f),fa)(_(_))
+    override def map[A,B](fa: F[A])(f: A => B):F[B] = {
+      map2(unit(f),fa)((f,v) => f(v))
     }
 
     def unit[A](a: A):F[A]
   }
+
+  class SmartBuilder[A,B](val f: A => B)
+  {
+      val applicative = applicativeBuilder;
+      val build = applicative.apply(applicative.unit(f))(_)
+
+      def read(step: BuildStep[Throwable,A]) = build(step)
+  }
+
+
+  object SmartBuilder
+  {
+    def apply[A,B](f: A => B) =
+    {
+      new SmartBuilder(f)
+    }
+  }
+
+  implicit def smartify[A,B](target: Curryable) = SmartBuilder(target.curried)
+
 
   trait BuildStep[+E, +A]
 
@@ -33,18 +55,27 @@ class ApplicativeStyle {
 
   def applicativeBuilder = new Applicative[({type f[x] = BuildStep[Throwable, x]})#f] {
     def unit[A](a: A) = Continue(a)
-    override def map[A, B](step: BuildStep[Throwable, A])(f: A => B) = {
-      step match {
-        case Continue(v) => {
+
+    override def map2[A, B, C](fa: BuildStep[Throwable, A], fb: BuildStep[Throwable, B])(f: (A, B) => C) = {
+
+      (fa, fb) match{
+        case (Continue(a), Continue(b)) => {
+
+          println("Enter map2")
+
           try
           {
-            Continue(f(v))
+            Continue(f(a,b))
           }
-          catch{
-            case e:Throwable => Failure(e)
-          }
+          catch
+            {
+              case e: Throwable => Failure(e)
+            }
+
         }
-        case f @ Failure(e) => f
+        case (f1 @ Failure(_), f2 @ Failure(_)) => f1
+        case (f @ Failure(e), _) => f
+        case (_, f @ Failure(e)) => f
       }
 
     }
