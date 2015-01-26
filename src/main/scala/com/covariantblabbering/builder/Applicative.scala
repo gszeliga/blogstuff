@@ -5,7 +5,7 @@ package com.covariantblabbering.builder
  */
 object ApplicativeStyle {
 
-  type Curryable = { def curried: _ => _ }
+  type Curryable[-A,-B, +C] = { def curried: A => Function[B,C] }
 
   trait Functor[F[_]]{
     def map[A,B](fa: F[A])(f: A => B): F[B]
@@ -28,24 +28,26 @@ object ApplicativeStyle {
     def unit[A](a: A):F[A]
   }
 
-  class SmartBuilder[A,B](val f: A => B)
+  class SmartBuilder[A,B,C](val f: A => Function[B,C])
   {
-      val applicative = applicativeBuilder;
+      val applicative = applicativeBuilder
       val build = applicative.apply(applicative.unit(f))(_)
 
-      def read(step: BuildStep[Throwable,A]) = build(step)
+      def read[E <: Throwable,D](step: BuildStep[E,A]) = {
+        applicative.apply(build(step))(_)
+      }
   }
 
 
   object SmartBuilder
   {
-    def apply[A,B](f: A => B) =
+    def apply[A,B,C](f: A => Function[B,C]) =
     {
       new SmartBuilder(f)
     }
   }
 
-  implicit def smartify[A,B](target: Curryable) = SmartBuilder(target.curried)
+  def smartify[A,B,C](target: Curryable[A,B,C]) = SmartBuilder(target.curried)
 
 
   trait BuildStep[+E, +A]

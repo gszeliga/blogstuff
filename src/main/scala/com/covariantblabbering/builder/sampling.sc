@@ -6,11 +6,12 @@ import com.covariantblabbering.builder.ApplicativeStyle.Continue
 case class Person(val name:String, val lastname: String, val kk: String)
 class Animal(val name:String, val lastname: String)
 val applicative = ApplicativeStyle.applicativeBuilder
-val builder = applicative.unit(Person.curried)
 /*
-val step1 = applicative.apply(builder)(Continue("Guillermo"))
+val builder = applicative.unit(Person.curried)
+val step1 = applicative.apply(builder)(_)
 val step2 = applicative.apply(step1)(Continue("Szeliga"))*/
 
-val builder2 = applicative.unit(Person.curried)
+/*val a:Curryable[String, String => AnyRef] = Person
 
-smartify(Person)
+a.curried("Hola")("Hola")*/
+smartify(Person) read Continue("Hola")
