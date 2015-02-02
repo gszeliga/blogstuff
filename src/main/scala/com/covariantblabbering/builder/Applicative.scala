@@ -28,27 +28,29 @@ object ApplicativeStyle {
     def unit[A](a: A):F[A]
   }
 
-  class SmartBuilder[A,B,C](val f: A => Function[B,C])
+  class SmartBuilder[A,B](val f: BuildStep[Throwable,A => B])
   {
-      val applicative = applicativeBuilder
-      val build = applicative.apply(applicative.unit(f))(_)
-
-      def read[E <: Throwable,D](step: BuildStep[E,A]) = {
-        applicative.apply(build(step))(_)
+      def ? [E <: Throwable](step: BuildStep[E,A])(implicit applicative: Applicative[({type f[x] = BuildStep[Throwable, x]})#f]) = {
+        applicative.apply(f)(step)
       }
   }
 
+  case class Outcome[A](val f:  BuildStep[Throwable, A]){
+    def unwrap[A] = { f match {case Continue(v) =>v}}
+  }
 
   object SmartBuilder
   {
-    def apply[A,B,C](f: A => Function[B,C]) =
-    {
-      new SmartBuilder(f)
-    }
+    def apply[A,B](f: BuildStep[Throwable,A => B]) = new SmartBuilder(f)
+
+    implicit val applicative = ApplicativeStyle.applicativeBuilder
+
+    implicit def done [A](s: BuildStep[Throwable,A]) = Outcome(s)
+    implicit def build[A,B](s: BuildStep[Throwable,A => B])=SmartBuilder(s)
+    implicit def asStep[A,B](f: A=> B)(implicit applicative: Applicative[({type f[x] = BuildStep[Throwable, x]})#f]) = applicative.unit(f)
+    implicit def smartify[A,B,C](target: Curryable[A,B,C])(implicit applicative: Applicative[({type f[x] = BuildStep[Throwable, x]})#f]) = build(asStep(target.curried))
+
   }
-
-  def smartify[A,B,C](target: Curryable[A,B,C]) = SmartBuilder(target.curried)
-
 
   trait BuildStep[+E, +A]
 
@@ -62,8 +64,6 @@ object ApplicativeStyle {
 
       (fa, fb) match{
         case (Continue(a), Continue(b)) => {
-
-          println("Enter map2")
 
           try
           {
