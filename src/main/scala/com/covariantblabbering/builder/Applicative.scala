@@ -1,32 +1,41 @@
 package com.covariantblabbering.builder
 
+
+trait Functor[F[_]]{
+  def map[A,B](fa: F[A])(f: A => B): F[B]
+}
+
+trait Applicative[F[_]] extends Functor[F]
+{
+  def map2[A,B,C](fa: F[A], fb: F[B])(f: (A,B) => C): F[C] = {
+    apply(map(fa)(a => f(a,_:B)))(fb)
+  }
+
+  def apply[A,B](a: F[A => B])(fa:F[A]):F[B] = {
+    map2(a,fa)((f,v) => f(v))
+  }
+
+  override def map[A,B](fa: F[A])(f: A => B):F[B] = {
+    map2(unit(f),fa)((f,v) => f(v))
+  }
+
+  def unit[A](a: A):F[A]
+}
+
+
+
+
 /**
  * Created by guillermo on 18/01/15.
  */
-object ApplicativeStyle {
+object ApplicativeStyleWithExceptions {
+
+  trait BuildStep[+E, +A]
+
+  case class Continue[T](v: T) extends BuildStep[Nothing, T]
+  case class Failure[E](e: E) extends BuildStep[E, Nothing]
 
   type Curryable[-A,-B, +C] = { def curried: A => Function[B,C] }
-
-  trait Functor[F[_]]{
-    def map[A,B](fa: F[A])(f: A => B): F[B]
-  }
-
-  trait Applicative[F[_]] extends Functor[F]
-  {
-    def map2[A,B,C](fa: F[A], fb: F[B])(f: (A,B) => C): F[C] = {
-      apply(map(fa)(a => f(a,_:B)))(fb)
-    }
-
-    def apply[A,B](a: F[A => B])(fa:F[A]):F[B] = {
-      map2(a,fa)((f,v) => f(v))
-    }
-
-    override def map[A,B](fa: F[A])(f: A => B):F[B] = {
-      map2(unit(f),fa)((f,v) => f(v))
-    }
-
-    def unit[A](a: A):F[A]
-  }
 
   final class SmartBuilder[A,B](val f: BuildStep[Throwable,A => B])
   {
@@ -42,42 +51,78 @@ object ApplicativeStyle {
       case Failure(e) => e
     }
 
-    implicit val applicative = ApplicativeStyle.applicativeBuilder
+    implicit val applicative = applicativeBuilder[Throwable]
 
     implicit def build[A,B](s: BuildStep[Throwable,A => B])=new SmartBuilder(s)
-    implicit def step[A,B](f: A=> B)(implicit applicative: Applicative[({type f[x] = BuildStep[Throwable, x]})#f]) = applicative.unit(f)
-    implicit def smartify[A,B,C](target: Curryable[A,B,C])(implicit applicative: Applicative[({type f[x] = BuildStep[Throwable, x]})#f]) = build(step(target.curried))
+    implicit def smartify[A,B,C](target: Curryable[A,B,C])(implicit applicative: Applicative[({type f[x] = BuildStep[Throwable, x]})#f]) = build(applicative.unit(target.curried))
 
   }
 
-  trait BuildStep[+E, +A]
-
-  case class Continue[T](v: T) extends BuildStep[Nothing, T]
-  case class Failure[E](e: E) extends BuildStep[E, Nothing]
-
-  def applicativeBuilder = new Applicative[({type f[x] = BuildStep[Throwable, x]})#f] {
+  def applicativeBuilder[E] = new Applicative[({type f[x] = BuildStep[E, x]})#f] {
     def unit[A](a: A) = Continue(a)
 
-    override def map2[A, B, C](fa: BuildStep[Throwable, A], fb: BuildStep[Throwable, B])(f: (A, B) => C) = {
+    override def map2[A, B, C](fa: BuildStep[E, A], fb: BuildStep[E, B])(f: (A, B) => C) = {
 
       (fa, fb) match{
-        case (Continue(a), Continue(b)) => {
+        case (Continue(a), Continue(b)) => Continue(f(a,b))
+        case (Failure(e1), Failure(e2)) => Failure(e1)
+        case (f @ Failure(_), _) => f
+        case (_, f @ Failure(_)) => f
+      }
+    }
+  }
+}
 
-          try
-          {
-            Continue(f(a,b))
-          }
-          catch
-            {
-              case e: Throwable => Failure(e)
-            }
+object ApplicativeStyleWithMultipleMessages {
 
-        }
-        case (f1 @ Failure(_), f2 @ Failure(_)) => f1
-        case (f @ Failure(e), _) => f
-        case (_, f @ Failure(e)) => f
+  sealed trait BuildStep[+E, +A]{
+    def toEither = ???
+  }
+
+  sealed case class Continue[T](v: T) extends BuildStep[Nothing,T]
+  sealed case class Failure[F](e: List[F]) extends BuildStep[List[F], Nothing]
+
+  type Curryable[-A,-B, +C] = { def curried: A => Function[B,C] }
+
+  def applicativeBuilder[E] = new Applicative[({type f[x] = BuildStep[List[E], x]})#f] {
+    def unit[A](a: A) = Continue(a)
+
+    override def map2[A, B, C](fa: BuildStep[List[E], A], fb: BuildStep[List[E], B])(f: (A, B) => C) = {
+
+      (fa, fb) match{
+        case (Continue(a), Continue(b)) => Continue(f(a,b))
+        case (Failure(l1), Failure(l2)) => Failure(l1 ++ l2)
+        case (f @ Failure(_), _) => f
+        case (_, f @ Failure(_)) => f
       }
 
     }
+  }
+
+  final class SmartBuilder[E,A,B](val f: BuildStep[E,A => B])
+  {
+    def @> (step: BuildStep[E,A])(implicit applicative: Applicative[({type f[x] = BuildStep[E, x]})#f]) = {
+      applicative.apply(f)(step)
+    }
+  }
+
+  object SmartBuilderOps
+  {
+    def <<= [E,A](f:  BuildStep[E, A]): Either[E,A] =  f match {
+      case Continue(v) => Right(v)
+      case Failure(e) => Left(e)
+    }
+
+    implicit val applicative = applicativeBuilder[String]
+
+    implicit def build[E,A,B](s: BuildStep[E,A => B])=new SmartBuilder(s)
+    implicit def smartify[E,A,B,C](target: Curryable[A,B,C])(implicit applicative: Applicative[({type f[x] = BuildStep[E, x]})#f]) = build(applicative.unit(target.curried))
+    implicit def toOps[T](v: T) = new SmartBuilderOps(v)
+
+  }
+
+  class SmartBuilderOps[T](v: T){
+    def failure = Failure(List(v))
+    def success = Continue(v)
   }
 }
