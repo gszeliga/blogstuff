@@ -4,10 +4,13 @@ val ps = (Person
   @> "Hola".success
   @> "Que".success
   @> "Eps".success
-  @> 1.success)
+  @> 1.success) toEither
 
 val pf = (Person
   @> "UPS!".failure
   @> "Que".success
   @> "Eps".failure
-  @> 1.success)
+  @> 1.success) toEither
+
+
+//Making the Builder pattern as hipster as it can get

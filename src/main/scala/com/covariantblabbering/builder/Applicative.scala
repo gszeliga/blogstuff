@@ -25,9 +25,6 @@ trait Applicative[F[_]] extends Functor[F]
 
 
 
-/**
- * Created by guillermo on 18/01/15.
- */
 object ApplicativeStyleWithExceptions {
 
   trait BuildStep[+E, +A]
@@ -47,7 +44,7 @@ object ApplicativeStyleWithExceptions {
   object SmartBuilderOps
   {
     def <<= [A](f:  BuildStep[Throwable, A]) =  f match {
-      case Continue(v) =>v
+      case Continue(v) => v
       case Failure(e) => e
     }
 
@@ -76,11 +73,15 @@ object ApplicativeStyleWithExceptions {
 object ApplicativeStyleWithMultipleMessages {
 
   sealed trait BuildStep[+E, +A]{
-    def toEither = ???
+    def toEither: Either[E,A]
   }
 
-  sealed case class Continue[T](v: T) extends BuildStep[Nothing,T]
-  sealed case class Failure[F](e: List[F]) extends BuildStep[List[F], Nothing]
+  final case class Continue[A](v: A) extends BuildStep[Nothing,A] {
+    def toEither = Right(v)
+  }
+  final case class Failure[F](e: List[F]) extends BuildStep[List[F], Nothing] {
+    def toEither = Left(e)
+  }
 
   type Curryable[-A,-B, +C] = { def curried: A => Function[B,C] }
 
@@ -99,7 +100,7 @@ object ApplicativeStyleWithMultipleMessages {
     }
   }
 
-  final class SmartBuilder[E,A,B](val f: BuildStep[E,A => B])
+  final class SmartBuilderOps[E,A,B](val f: BuildStep[E,A => B])
   {
     def @> (step: BuildStep[E,A])(implicit applicative: Applicative[({type f[x] = BuildStep[E, x]})#f]) = {
       applicative.apply(f)(step)
@@ -108,20 +109,15 @@ object ApplicativeStyleWithMultipleMessages {
 
   object SmartBuilderOps
   {
-    def <<= [E,A](f:  BuildStep[E, A]): Either[E,A] =  f match {
-      case Continue(v) => Right(v)
-      case Failure(e) => Left(e)
-    }
-
     implicit val applicative = applicativeBuilder[String]
 
-    implicit def build[E,A,B](s: BuildStep[E,A => B])=new SmartBuilder(s)
-    implicit def smartify[E,A,B,C](target: Curryable[A,B,C])(implicit applicative: Applicative[({type f[x] = BuildStep[E, x]})#f]) = build(applicative.unit(target.curried))
-    implicit def toOps[T](v: T) = new SmartBuilderOps(v)
+    implicit def toSmartBuilderOps[E,A,B](s: BuildStep[E,A => B])=new SmartBuilderOps(s)
+    implicit def smartify[E,A,B,C](target: Curryable[A,B,C])(implicit applicative: Applicative[({type f[x] = BuildStep[E, x]})#f]) = toSmartBuilderOps(applicative.unit(target.curried))
+    implicit def toValidationOps[T](v: T) = new ValidationOps(v)
 
   }
 
-  class SmartBuilderOps[T](v: T){
+  class ValidationOps[T](v: T){
     def failure = Failure(List(v))
     def success = Continue(v)
   }
