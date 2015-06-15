@@ -79,7 +79,7 @@ object ApplicativeStyleWithMultipleMessages {
   final case class Continue[A](v: A) extends BuildStep[Nothing,A] {
     def toEither = Right(v)
   }
-  final case class Failure[F](e: List[F]) extends BuildStep[List[F], Nothing] {
+  final case class Failure[E](e: List[E]) extends BuildStep[List[E], Nothing] {
     def toEither = Left(e)
   }
 

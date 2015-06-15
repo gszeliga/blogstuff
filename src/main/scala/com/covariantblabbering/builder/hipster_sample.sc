@@ -4,9 +4,9 @@ import com.covariantblabbering.builder.Hipster
 import com.covariantblabbering.builder.HipsterRules._
 
 (Hipster
-  @> facialHairStyle("Bushy beard")
+  @> facialHairStyle("Shaved")
   @> tshirt("Heather Grey's V-Neck")
-  @> acceptedBands("Sun Kil Moon")
+  @> acceptedBands("Winger")
   @> acceptedHobbies("Knitting")) toEither
 
 
