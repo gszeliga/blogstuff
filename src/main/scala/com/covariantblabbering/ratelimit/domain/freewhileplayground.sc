@@ -1,44 +1,29 @@
 import com.covariantblabbering.ratelimit.domain.FreeWhile.doWhile
+import com.covariantblabbering.ratelimit.domain.Transform.{evaluator, Partial}
+import com.covariantblabbering.ratelimit.domain.{TestMe, test, Transform, Ops}
+import com.covariantblabbering.ratelimit.domain.Ops.{zero, MyOps}
 
-import scalaz.{Id, ~>, Free, Coyoneda}
-
-object Ops{
-  sealed trait Ops[A]
-  final case class Value[A](a:A) extends Ops[A]
-  final case class Add[A](v1: Ops[A], v2: Ops[A]) extends Ops[A]
-
-  type MyOps[A] = Coyoneda[Ops,A]
-
-  def value[A](v:A): Free[MyOps,A] = Free.liftFC(Value(v))
-
-  val zero = value(0)
-}
+import scalaz.Free
 
 import Ops._
 
-object MyInterpreter extends (Ops ~> Id.Id) {
+/*def count(i: Int):Free[MyOps,Int] = {
 
-  import Id._
-
-  def apply[A](fa: Ops[A]): Id[A] = fa match {
-    case Value(v) => v
-    case Add(Value(v1),Value(v2)) => Value(1+2)
-  }
-}
-
-
-def count(i: Int):Free[MyOps,Int] = {
-
-  def doCount(partial:Int):Free[MyOps,Int] =
-    doWhile[MyOps,Int](counter => counter < i) {
-      () => value(partial) flatMap (v => doCount(v + 1))
+  def doCount(partial:Int):Free[Ops,Int] = {
+    doWhile((counter:Int) => counter < i)(() => zero) {
+      () => Ops.value(partial) flatMap (v => doCount(v + 1))
     }
 
   doCount(0)
 
-}
+}*/
 
-val counter = count(2)
+/*val counter:Free[MyOps,Int] = count(2)*/
 
-Free.runFC(counter)(MyInterpreter)
+val counter = value(7) 
 
+/*Free.runFC(counter)(Evaluator).exec(0)*/
+/*Free.runFC(counter)(evaluator).exec(0)*/
+
+test.main(Array("hola"))
+TestMe.go()
