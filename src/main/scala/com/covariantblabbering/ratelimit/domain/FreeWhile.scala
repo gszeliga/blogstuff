@@ -61,7 +61,7 @@ object Transform{
   def evaluator: Ops ~> Partial = new (Ops ~> Partial) {
 
     def apply[A](op: Ops[A]):Partial[A] = op match {
-      case Value(v) => State(s => (s+1,v))
+      case Value(v) => State(s => (s,v))
       /*case Add(Value(v1), Value(v2)) =>  State((s:Int) => (v1+s+v2, ()))*/
     }
   }
