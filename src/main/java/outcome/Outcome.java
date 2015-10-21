@@ -224,7 +224,7 @@ public class Outcome<T> {
                 this.failures()
                         .stream()
                         .filter(f -> !failures.contains(f))
-                        .forEach(f -> failures.add(f));
+                        .forEach(failures::add);
 
                 return Outcome.<T>failure(failures);
             }

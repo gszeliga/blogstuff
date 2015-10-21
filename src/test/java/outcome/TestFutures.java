@@ -9,7 +9,9 @@ import java.util.concurrent.CompletableFuture;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static outcome.Futures.Composer.compose;
+import static outcome.Futures.Composer2.compose2;
 import static outcome.Futures.merge;
+import static outcome.Futures.merge2;
 import static outcome.Outcome.maybe;
 
 /**
@@ -55,6 +57,18 @@ public class TestFutures{
          compose(Message.begin())
                 .staging(fillUpText.merge(Optional.ofNullable(textf)))
                 .staging(fillUpNumber.merge(Optional.ofNullable(numberf)))
+                .apply();
+
+    }
+
+    @Test
+    public void shouldCombineTwoFuturesUsingMerge2(){
+
+        CompletableFuture<Outcome<String>> textf = completedFuture(maybe("Hi dude %s!"));
+        CompletableFuture<Outcome<Integer>> numberf = completedFuture(maybe(22));
+
+        compose2(Message.begin())
+                .staging2(merge2(Builder.class,() -> textf).as((b, text) -> text.mapR(b::text)))
                 .apply();
 
     }
