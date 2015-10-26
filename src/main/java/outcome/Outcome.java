@@ -204,31 +204,25 @@ public class Outcome<T> {
      */
     public final <U> Outcome<T> dependingOn(Outcome<U> that) {
 
-        final Outcome<U> o1 = that;
+        if (this.isFailure() || that.isFailure()) {
+            if(this.isFailure() && that.isFailure()){
 
-        if (this.isFailure() || o1.isFailure()) {
-
-            if(!this.isFailure() && o1.isFailure())
-            {
-                return (Outcome<T>)o1;
-            }
-            else if(this.isFailure() && !o1.isFailure())
-            {
-                return this;
-            }
-            else if(this.isFailure() && o1.isFailure()){
-
-                List<Failure> failures = new ArrayList<>(o1.failures());
+                List<Failure> failures = new ArrayList<>(that.failures());
 
                 //Add only those failures that doesn't exist (avoid repeated values)
-                this.failures()
+                failures()
                         .stream()
                         .filter(f -> !failures.contains(f))
                         .forEach(failures::add);
 
-                return Outcome.<T>failure(failures);
+                return failure(failures);
             }
-            else{
+            else if(that.isFailure())
+            {
+                return (Outcome<T>)that;
+            }
+            else
+            {
                 return this;
             }
         }

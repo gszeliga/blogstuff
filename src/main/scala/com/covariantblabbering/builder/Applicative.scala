@@ -50,7 +50,7 @@ object ApplicativeStyleWithExceptions {
 
     implicit val applicative = applicativeBuilder[Throwable]
 
-    implicit def build[A,B](s: BuildStep[Throwable,A => B])=new SmartBuilder(s)
+    implicit def build[A,B](s: BuildStep[Throwable,A => B]): SmartBuilder[A, B] =new SmartBuilder(s)
     implicit def smartify[A,B,C](target: Curryable[A,B,C])(implicit applicative: Applicative[({type f[x] = BuildStep[Throwable, x]})#f]) = build(applicative.unit(target.curried))
 
   }

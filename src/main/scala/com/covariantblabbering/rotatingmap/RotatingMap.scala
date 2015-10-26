@@ -33,7 +33,7 @@ class RotatingMap[K, V](val numBuckets: Int, val expiredCallback: Option[OnExpir
 
     //Notify expirations
 
-    expiredCallback map {
+    expiredCallback foreach {
       dead.foreach(_)
     }
 

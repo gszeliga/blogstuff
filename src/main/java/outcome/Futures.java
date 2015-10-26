@@ -39,55 +39,48 @@ public class Futures {
                         }));
     }
 
-    public static <C> CompletableFuture<Outcome<C>> unit(C z){
-        return  completedFuture(maybe(z));
-    }
-
-    //Ugly java type declaration, ughhh
-    static <B,C> CompletableFuture<Outcome<B>> combine(CompletableFuture<Outcome<B>>  builder,
-                                                       Optional<CompletableFuture<Outcome<C>>> concept,
-                                                       BiFunction<Outcome<B>,Outcome<C>,Outcome<B>> f)
+    public static class CompositionSources<B>
     {
-        if(concept.isPresent())
-        {
-            return builder.thenCombine(concept.get(),f);
+        public interface MergingStage<B,C>{
+            Function<CompletableFuture<Outcome<B>>,CompletableFuture<Outcome<B>>> by
+                    (BiFunction<B, Outcome<C>, Outcome<B>> f);
         }
-        else
+
+        CompositionSources()
         {
-            return builder;
+
         }
-    }
 
+        public <C> MergingStage<B,C> value(CompletableFuture<Outcome<C>> concept){
 
-    public interface MergingStage2<B,C>{
-        Function<CompletableFuture<Outcome<B>>,CompletableFuture<Outcome<B>>> as
-                (BiFunction<B, Outcome<C>, Outcome<B>> f);
-    }
+            return f -> builder -> {
 
-    public static <B,C> MergingStage2<B,C> merge2(Class<B> clazz,Supplier<CompletableFuture<Outcome<C>>> concept){
+                BiFunction<Outcome<B>,Outcome<C>,Outcome<B>> g =
+                        (ob, c) -> ob.dependingOn(c).flatMapR(b -> f.apply(b, c));
 
-        return f -> builder -> {
+                return combine(builder, Optional.ofNullable(concept), g);
+            };
+        }
 
-            BiFunction<Outcome<B>,Outcome<C>,Outcome<B>> g =
-                    (ob, c) -> ob.flatMapR(b -> f.apply(b, c)).dependingOn(c);
+        //Ugly java type declaration, ughhh
+        <B,C> CompletableFuture<Outcome<B>> combine(CompletableFuture<Outcome<B>>  builder,
+                                                           Optional<CompletableFuture<Outcome<C>>> concept,
+                                                           BiFunction<Outcome<B>,Outcome<C>,Outcome<B>> f)
+        {
+            if(concept.isPresent())
+            {
+                return builder.thenCombine(concept.get(),f);
+            }
+            else
+            {
+                return builder;
+            }
+        }
 
-            return combine(builder, Optional.ofNullable(concept.get()), g);
-        };
-    }
-
-    public static <B,C> MergingStage<B,C> merge(BiFunction<B, Outcome<C>, Outcome<B>> f){
-
-        return (concept) ->
-                (builder) ->
-                        combine(builder, concept,
-                                (ob, c) -> ob.flatMapR(b -> f.apply(b, c)).dependingOn(c)
-                        );
-    }
-
-
-    public interface MergingStage<B,C>{
-        Function<CompletableFuture<Outcome<B>>,CompletableFuture<Outcome<B>>> merge
-                (Optional<CompletableFuture<Outcome<C>>> concept);
+        public static <B> CompositionSources<B> stickedTo(Class<B> clazz)
+        {
+            return new CompositionSources<>();
+        }
     }
 
     public interface Creator<C>
@@ -95,53 +88,28 @@ public class Futures {
         C create();
     }
 
-    public static class Composer<C,B extends Creator<C>>{
+    public static class FutureComposition<C,B extends Creator<C>>{
 
-        private final CompletableFuture<Outcome<B>> _partial;
+        private final Supplier<CompletableFuture<Outcome<B>>> _partial;
 
-        private Composer(CompletableFuture<Outcome<B>> state)
+        private FutureComposition(Supplier<CompletableFuture<Outcome<B>>> state)
         {
             _partial=state;
         }
 
-        public Composer<C,B> staging(Function<CompletableFuture<Outcome<B>>, CompletableFuture<Outcome<B>>> stage)
+        public FutureComposition<C,B> using(Function<CompletableFuture<Outcome<B>>, CompletableFuture<Outcome<B>>> stage)
         {
-            return new Composer<>(stage.apply(_partial));
+            return new FutureComposition<>(() -> stage.apply(_partial.get()));
         }
 
-        public CompletableFuture<Outcome<C>> apply()
+        public CompletableFuture<Outcome<C>> perform()
         {
-            return _partial.thenApply(o -> o.mapR(Creator::create));
+            return _partial.get().thenApply(o -> o.mapR(Creator::create));
         }
 
-        public static <C,B extends Creator<C>> Composer<C,B> compose(B state)
+        public static <C,B extends Creator<C>> FutureComposition<C,B> compose(B state)
         {
-            return new Composer<>(Futures.unit(state));
-        }
-    }
-
-    public static class Composer2<C,B extends Creator<C>>{
-
-        private final CompletableFuture<Outcome<B>> _partial;
-
-        private Composer2(CompletableFuture<Outcome<B>> state)
-        {
-            _partial=state;
-        }
-
-        public Composer2<C,B> staging2(Function<CompletableFuture<Outcome<B>>,CompletableFuture<Outcome<B>>> stage)
-        {
-            return new Composer2<>(stage.apply(_partial));
-        }
-
-        public CompletableFuture<Outcome<C>> apply()
-        {
-            return _partial.thenApply(o -> o.mapR(Creator::create));
-        }
-
-        public static <C,B extends Creator<C>> Composer2<C,B> compose2(B state)
-        {
-            return new Composer2<>(Futures.unit(state));
+            return new FutureComposition<>(() -> completedFuture(maybe(state)));
         }
     }
 
