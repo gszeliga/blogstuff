@@ -27,6 +27,22 @@ public interface Failure {
         public String getDefaultMessage() {
             return _message;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            SimpleFailure that = (SimpleFailure) o;
+
+            return !(_message != null ? !_message.equals(that._message) : that._message != null);
+
+        }
+
+        @Override
+        public int hashCode() {
+            return _message != null ? _message.hashCode() : 0;
+        }
     }
 
     static <T> Optional<Failure> fail(String defaultMessage, String field, T value) {
