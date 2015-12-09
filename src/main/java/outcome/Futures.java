@@ -1,5 +1,7 @@
 package outcome;
 
+import outcome.Futures.CompositionSources.Partial;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -15,16 +17,23 @@ public class Futures {
 
     public static class CompositionSources<B>
     {
-        public interface MergingStage<B,C>{
-            Function<CompletableFuture<Outcome<B>>,CompletableFuture<Outcome<B>>> by
-                    (BiFunction<Outcome<B>, Outcome<C>, Outcome<B>> f);
+        private CompositionSources(){ }
+
+        public interface Partial<B>
+        {
+            CompletableFuture<Outcome<B>> apply(CompletableFuture<Outcome<B>> b);
         }
 
-        CompositionSources(){ }
+        public interface MergingStage<B, V>{
+            Partial<B> by(BiFunction<Outcome<B>, Outcome<V>, Outcome<B>> f);
+        }
 
-        public <C> MergingStage<B,C> value(CompletableFuture<Outcome<C>> value){
+        public <V> MergingStage<B, V> value(CompletableFuture<Outcome<V>> value){
 
-            return f -> builder -> builder.thenCombine(value, (b, v) -> f.apply(b, v).dependingOn(b).dependingOn(v));
+            return f -> builder
+                     -> builder.thenCombine(value, (b, v) -> f.apply(b, v)
+                                                              .dependingOn(b)
+                                                              .dependingOn(v));
         }
 
         public static <B> CompositionSources<B> stickedTo(Class<B> clazz)
@@ -38,18 +47,18 @@ public class Futures {
         V apply();
     }
 
-    public static class FutureComposition<V , A extends WannabeApplicative<V>>{
+    public static class FutureCompositions<V , A extends WannabeApplicative<V>>{
 
         private final Supplier<CompletableFuture<Outcome<A>>> _partial;
 
-        private FutureComposition(Supplier<CompletableFuture<Outcome<A>>> state)
+        private FutureCompositions(Supplier<CompletableFuture<Outcome<A>>> state)
         {
             _partial=state;
         }
 
-        public FutureComposition<V, A> nourish(Function<CompletableFuture<Outcome<A>>, CompletableFuture<Outcome<A>>> stage)
+        public FutureCompositions<V, A> binding(Partial<A> stage)
         {
-            return new FutureComposition<>(() -> stage.apply(_partial.get()));
+            return new FutureCompositions<>(() -> stage.apply(_partial.get()));
         }
 
         public CompletableFuture<Outcome<V>> perform()
@@ -57,9 +66,9 @@ public class Futures {
             return _partial.get().thenApply(p -> p.mapR(WannabeApplicative::apply));
         }
 
-        public static <V, A extends WannabeApplicative<V>> FutureComposition<V, A> compose(A applicative)
+        public static <V, A extends WannabeApplicative<V>> FutureCompositions<V, A> begin(A applicative)
         {
-            return new FutureComposition<>(() -> completedFuture(maybe(applicative)));
+            return new FutureCompositions<>(() -> completedFuture(maybe(applicative)));
         }
     }
 

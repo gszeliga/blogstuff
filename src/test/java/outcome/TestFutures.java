@@ -1,7 +1,8 @@
 package outcome;
 
-import org.hamcrest.collection.IsCollectionWithSize;
 import org.junit.Test;
+import outcome.Futures.CompositionSources.Partial;
+import outcome.Futures.FutureCompositions;
 import outcome.TestFutures.Message.Builder;
 
 import java.util.concurrent.CompletableFuture;
@@ -12,7 +13,7 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertThat;
 import static outcome.Failure.fail;
-import static outcome.Futures.FutureComposition.compose;
+import static outcome.Futures.FutureCompositions.begin;
 import static outcome.Outcome.failure;
 import static outcome.Outcome.maybe;
 
@@ -23,18 +24,19 @@ public class TestFutures{
 
     public static class Message{
 
-        private String _msg;
+        private final String _text;
+        private final Integer _number;
 
-        private Message(String msg){
-            _msg=msg;
+        private Message(String msg, Integer number){
+            _text =msg;
+            _number=number;
         }
 
-        @Override
-        public String toString() {
-            return _msg;
+        public String getContent(){
+            return String.format(_text,_number);
         }
 
-        public static Builder begin(){
+        public static Builder applicative(){
             return new Builder();
         }
 
@@ -55,7 +57,7 @@ public class TestFutures{
 
             @Override
             public Message apply() {
-                return new Message(String.format(_text,_number));
+                return new Message(_text,_number);
             }
         }
     }
@@ -87,13 +89,16 @@ public class TestFutures{
 
         Futures.CompositionSources<Builder> sources = Futures.CompositionSources.stickedTo(Builder.class);
 
-        Outcome<Message> message = compose(Message.begin())
-                .nourish(sources.value(textf).by((builder, text) -> builder.flatMapR(b -> text.mapR(b::text))))
-                .nourish(sources.value(numberf).by((builder, number) -> builder.flatMapR(b -> number.mapR(b::number))))
+        Partial<Builder> textPartialApply = sources.value(textf).by((builder, text) -> builder.flatMapR(b -> text.mapR(b::text)));
+        Partial<Builder> numberPartialApply = sources.value(numberf).by((builder, number) -> builder.flatMapR(b -> number.mapR(b::number)));
+
+        Outcome<Message> message = FutureCompositions.begin(Message.applicative())
+                .binding(textPartialApply)
+                .binding(numberPartialApply)
                 .perform().get();
 
         assertThat(message.isMaybe(), equalTo(true));
-        assertThat(message.maybe().toString(), equalTo("Hi dude 22!"));
+        assertThat(message.maybe().getContent(), equalTo("Hi dude 22!"));
     }
 
     @Test
@@ -104,9 +109,9 @@ public class TestFutures{
 
         Futures.CompositionSources<Builder> sources = Futures.CompositionSources.stickedTo(Builder.class);
 
-        Outcome<Message> message = compose(Message.begin())
-                .nourish(sources.value(textf).by((b, text) -> failure(fail("I just failed"))))
-                .nourish(sources.value(numberf).by((builder, number) -> builder.flatMapR(b -> number.mapR(b::number))))
+        Outcome<Message> message = begin(Message.applicative())
+                .binding(sources.value(textf).by((b, text) -> failure(fail("I just failed"))))
+                .binding(sources.value(numberf).by((builder, number) -> builder.flatMapR(b -> number.mapR(b::number))))
                 .perform().get();
 
         assertThat(message.isMaybe(), equalTo(false));
@@ -122,9 +127,9 @@ public class TestFutures{
 
         Futures.CompositionSources<Builder> sources = Futures.CompositionSources.stickedTo(Builder.class);
 
-        Outcome<Message> message = compose(Message.begin())
-                .nourish(sources.value(textf).by((builder, text) -> builder.flatMapR(b -> text.mapR(b::text))))
-                .nourish(sources.value(numberf).by((b, number) -> failure(fail("Me too!!"))))
+        Outcome<Message> message = begin(Message.applicative())
+                .binding(sources.value(textf).by((builder, text) -> builder.flatMapR(b -> text.mapR(b::text))))
+                .binding(sources.value(numberf).by((b, number) -> failure(fail("Me too!!"))))
                 .perform().get();
 
         assertThat(message.isMaybe(), equalTo(false));
@@ -140,9 +145,9 @@ public class TestFutures{
 
         Futures.CompositionSources<Builder> sources = Futures.CompositionSources.stickedTo(Builder.class);
 
-        Outcome<Message> message = compose(Message.begin())
-                .nourish(sources.value(textf).by((b, text) -> failure(fail("I just failed"))))
-                .nourish(sources.value(numberf).by((b, number) -> failure(fail("Me too!!"))))
+        Outcome<Message> message = begin(Message.applicative())
+                .binding(sources.value(textf).by((b, text) -> failure(fail("I just failed"))))
+                .binding(sources.value(numberf).by((b, number) -> failure(fail("Me too!!"))))
                 .perform().get();
 
         assertThat(message.isMaybe(), equalTo(false));
@@ -157,9 +162,9 @@ public class TestFutures{
 
         Futures.CompositionSources<Builder> sources = Futures.CompositionSources.stickedTo(Builder.class);
 
-        Outcome<Message> message = compose(Message.begin())
-                .nourish(sources.value(textf).by((builder, text) -> builder.flatMapR(b -> text.mapR(b::text))))
-                .nourish(sources.value(numberf).by((builder, number) -> builder.flatMapR(b -> number.mapR(b::number))))
+        Outcome<Message> message = begin(Message.applicative())
+                .binding(sources.value(textf).by((builder, text) -> builder.flatMapR(b -> text.mapR(b::text))))
+                .binding(sources.value(numberf).by((builder, number) -> builder.flatMapR(b -> number.mapR(b::number))))
                 .perform().get();
 
         assertThat(message.isMaybe(), equalTo(false));
@@ -175,9 +180,9 @@ public class TestFutures{
 
         Futures.CompositionSources<Builder> sources = Futures.CompositionSources.stickedTo(Builder.class);
 
-        Outcome<Message> message = compose(Message.begin())
-                .nourish(sources.value(textf).by((builder, text) -> builder.flatMapR(b -> text.mapR(b::text))))
-                .nourish(sources.value(numberf).by((builder, number) -> builder.flatMapR(b -> number.mapR(b::number))))
+        Outcome<Message> message = begin(Message.applicative())
+                .binding(sources.value(textf).by((builder, text) -> builder.flatMapR(b -> text.mapR(b::text))))
+                .binding(sources.value(numberf).by((builder, number) -> builder.flatMapR(b -> number.mapR(b::number))))
                 .perform().get();
 
         assertThat(message.isMaybe(), equalTo(false));
